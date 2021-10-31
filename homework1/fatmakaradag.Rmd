@@ -1,0 +1,274 @@
+---
+title: "CENG 4515 DATA SCIENCE AND ANALYTICS HMW1"
+author: "Fatma Karadağ"
+date: "19/ 10 / 2021"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+
+I created the dataset myself, I wanted to create a dataset using the information about the artists and songs I liked in my spotify list and examine it.
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+# Importing the relevant libraries
+
+
+```{r echo=T, results='hide', warning=FALSE, message=FALSE}
+library(ggplot2)
+library(dplyr)
+library(GGally)
+library(tidyverse)
+library(readxl)
+```
+
+
+
+## importing dataset
+
+
+
+```{r}
+df <- read_excel("C:/Users/ftmak/OneDrive/Masaüstü/favouritesongs.xlsx")
+
+```
+
+
+
+
+# Let's check the data
+
+
+
+
+With head() Returns the first or last parts of a vector, matrix, table, data frame or function. (in addition same situation can with tail() method).With n=3 we indicate that we want to get the first line. 
+
+
+
+
+```{r}
+head(df, n=3)
+```
+
+
+
+With colnames(), all column names in the data set are printed on the screen.
+
+
+
+
+```{r}
+colnames(df)
+```
+
+
+
+
+
+I looked at the types of data contained in the dataset with typeof()
+
+
+
+
+
+```{r}
+x <- df
+typeof(x)
+
+
+length(x)
+colnames(x)
+summary(x)
+```
+
+
+
+```{r}
+sapply(df,class)
+```
+
+
+
+
+select() allows you to rapidly zoom in on a useful subset using operations based on the names of the variables.
+
+
+Select all columns between album adı and sarkının çıkış tarihi  (inclusive)
+  
+  
+  
+  
+```{r}
+select(df,-(album_adi:sarkinin_cikis_tarihi))
+```
+
+
+
+From these variables, I selected all the variables between the "sarki_adi" and "sarkinin_cikis_tarihi" and defined them as "s1".
+
+
+
+
+
+```{r}
+s1 <- dplyr::select(df, sarki_adi:sarkinin_cikis_tarihi)
+s1
+```
+
+
+
+
+
+
+
+filter() allows you to subset observations based on their values. The first argument is the name of the data frame. The second and subsequent arguments are the expressions that filter the data frame.
+
+
+
+
+```{r}
+filter(df,sarki_adi=="attention",sanatci_adi=="charlie puth")
+```
+
+
+
+I returned the song information with the number of listens over 8000000 to the screen with the filter() method.
+
+
+
+```{r}
+filter(df,sarkinin_dinlenme_sayisi > 8000000)
+```
+
+
+
+
+arrange() works similarly to filter() except that instead of selecting rows, it changes their order.
+
+
+
+For the songs in my data, I used both arrange() and desc() to reorder them by a column in descending order.
+
+
+
+```{r}
+arrange(df, desc(sarkinin_cikis_tarihi))
+```
+
+
+
+
+
+
+Here, I got the columns I wanted with the select() method above, and now I sorted the columns I arranged using the arrange() method.
+
+
+That is, I have also shown the method of using the select() and arrange() methods by combining them.
+
+
+```{r}
+
+arrange(s1, album_adi)
+
+```
+
+
+
+
+
+
+
+
+
+# Data visualisation(example-1)
+
+
+First, I visualized how many songs are from which album, and then I visualized how many songs each artist has from which album and blended my information.
+
+
+```{r}
+df$album_adi <- as.factor(df$album_adi)
+summary(df$album_adi)
+```
+
+```{r}
+
+
+ggplot(data=df, aes(x=album_adi)) +
+  geom_bar(fill="orange", alpha=0.7)+
+  labs(title = "BarChart", x="albüm adı", y="Count")
+```
+
+```{r}
+df$sanatci_adi <- as.factor(df$sanatci_adi)
+summary(df$sanatci_adi)
+```
+
+
+```{r}
+
+ggplot(df, aes(x=sanatci_adi, fill=album_adi))+
+  geom_bar() + 
+  labs(title = " BarChart",x= "sanatcı adı",y= "Count") +
+  theme(axis.text.x=element_text(angle=-45,hjust=0,vjust=0))
+```
+
+
+
+
+As seen above, it is shown how many songs the artists have from which album. that is, these data can be found by looking at the bar chart.
+
+
+
+
+
+# Data visualisation(example-2)
+
+```{r}
+df$sarkinin_cikis_tarihi <- as.Date(df$sarkinin_cikis_tarihi, "%m/%d/%Y")
+df$age <- as.numeric(format(df$sarkinin_cikis_tarihi, "%Y"))
+
+df$age <- 2021 - df$age
+
+age.df <- data.frame(table(df$age))
+names(age.df) <- c("age", "freq")
+age.df
+
+
+ggplot(age.df, aes(x=age, y=freq, fill=age))+
+  geom_bar(stat = "identity") + 
+  labs(title = "BarChart", x="song Age", y="n.response")
+```
+
+
+
+
+I calculated the ages of the songs by looking at their release dates and showed them how many songs were of the same age.
+The value shown as 0 is equivalent to 2021, so the age of the song is zero. In the 1st one, it belongs to 2020 and is 1 year old, I created a logic in this way.
+
+
+
+
+
+
+
+
+```{r}
+df$age <- as.factor(df$age)
+ggplot(data=df, aes(x=age, y=album_adi, fill= age)) +
+  geom_boxplot() + 
+  labs(title = "Boxplot", x="Age", y="albüm") +
+  stat_summary(fun=mean, geom="point", shape=4, size=2) +
+  theme(axis.text.x=element_text(angle=-45,hjust=0,vjust=0))
+```
+
+
+
+
+Here too, the ages of the albums they are on are calculated in line with the release dates of the songs.
