@@ -1,0 +1,198 @@
+---
+title: "CENG 4515 DATA SCIENCE AND ANALYTICS HOMEWORK-2"
+author: "Fatma KARADAĞ"
+date: "03 11 2021"
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(logisticPCA)
+library(ggplot2)
+library(caTools)
+library(readxl)
+library(corrplot)
+library(Amelia)
+library(mlbench)
+library(caret)
+library(plyr)
+library(MASS)
+library(ggfortify)
+library(tidyverse)
+library(gplots)
+library(ROCR)
+library(logistf)
+
+```
+
+
+
+
+
+```{r}
+df <- read.csv("C:/Users/ftmak/OneDrive/Masaüstü/breast cancer diagnosis .csv")
+```
+
+```{r}
+colnames(df)
+```
+
+
+```{r}
+head(df,n=6)
+```
+
+
+```{r}
+str(df)
+```
+
+```{r}
+summary(df)
+```
+
+
+```{r}
+sapply(df,class)
+```
+
+
+```{r}
+xtabs(~breast+Class,data=df)
+```
+
+```{r}
+missmap(df)
+```
+
+
+
+```{r}
+fg <-cor(df[,c(1,2,4,5,6,7,9)])
+corrplot(fg,method = "circle")
+
+```
+
+
+```{r}
+heatmap(cor(fg[,-1]))
+```
+
+
+
+# Building a logistic regression model (Base model)
+
+
+```{r}
+set.seed(100)
+
+train <- createDataPartition(y=df$breast,p=0.8,list = FALSE)
+
+train_dataset <-df[train,]
+test_dataset <-df[-train,]
+```
+
+
+
+```{r}
+nrow(train_dataset)
+```
+
+```{r}
+nrow(test_dataset)
+```
+
+```{r}
+
+model <- glm(factor(breast) ~.,family=binomial(link='logit'), data=train_dataset)
+
+```
+
+
+
+```{r}
+summary(model)
+```
+
+
+
+
+```{r}
+prediction <- predict(model, data = train_dataset, type = "response")
+head(prediction, 10)
+
+
+```
+
+
+
+
+```{r}
+confmatrix <-table(Actual_value=train_dataset$breast,Predicted_value=prediction >0.5)
+confmatrix
+```
+
+
+
+
+
+```{r}
+#count(confmatrix)
+```
+
+```{r}
+plot(confmatrix)
+```
+
+
+
+
+# PCA
+
+```{r}
+data<-df
+
+head(data,n=5)
+```
+
+
+```{r}
+log.data <- log(data[,1:2])
+hist(data$Start.Age)
+hist(data$End.Age)
+hist(log.data$Start.Age)
+hist(log.data$End.Age)
+```
+
+
+```{r}
+data.species<-data[,10]
+data.pca <-prcomp(log.data,center = TRUE,scale. = TRUE)
+
+print(data.pca)
+```
+
+
+```{r}
+plot(data.pca,type="l")
+```
+
+
+```{r}
+summary(data.pca)
+```
+
+
+
+
+
+```{r}
+
+predict(data.pca,newdata = tail(log.data,2))
+```
+
