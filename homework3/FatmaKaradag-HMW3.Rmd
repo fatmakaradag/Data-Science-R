@@ -1,0 +1,147 @@
+---
+title: "HMW-3"
+author: "Fatma KARADAĞ"
+date: "24 11 2021"
+output: html_document
+---
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(factoextra)
+library(cluster)
+library(stats)
+```
+
+
+```{r }
+data('iris')
+```
+
+
+
+```{r}
+iris
+head(iris,n=6)
+```
+
+```{r}
+ggplot(iris, aes(x=Sepal.Length, y=Sepal.Width, color=Species)) + geom_point()
+```
+
+```{r}
+pca <- prcomp(iris[,-5],center = T, scale. = T)
+pca
+```
+
+
+```{r}
+summary(pca)
+```
+
+
+
+```{r}
+plot(pca, main="Principal Component Analysis")
+```
+
+
+```{r}
+iris_transform = as.data.frame(-pca$x[,1:2])
+```
+
+
+```{r}
+fviz_nbclust(iris_transform, kmeans, method = 'wss')
+```
+
+
+
+
+```{r}
+fviz_nbclust(iris_transform, kmeans, method = 'silhouette')
+fviz_nbclust(iris_transform, kmeans, method = 'gap_stat')
+```
+
+
+
+```{r}
+set.seed (102)
+```
+
+```{r}
+k = 3
+kmeans_iris = kmeans(iris_transform, centers = k, nstart = 50)
+fviz_cluster(kmeans_iris, data = iris_transform)
+```
+
+```{r}
+model = kmeans(iris_transform, centers = 3, nstart = 50)
+kmeans.predicted <- c("versicolor","setosa","virginica")[model$cluster]
+kmeans.predicted
+```
+
+
+```{r}
+kmeans.predicted <- c("versicolor","setosa","virginica")[model$cluster]
+kmeans.predicted
+```
+
+
+```{r}
+var.means <- apply(iris[, 1:4], 2, mean)
+var.sd <- apply(iris[, 1:4], 2, sd)
+iris.zscores <- sweep(iris[, 1:4], 2, var.means, "-")
+iris.zscores <- sweep(iris.zscores, 2, var.sd, "/")
+head(iris.zscores)
+```
+
+
+
+```{r}
+iris.dist <- dist(iris.zscores, method="euclidean")
+as.matrix(iris.dist)[1:6, 1:6]
+```
+
+
+```{r}
+iris.hclust <- hclust(iris.dist, method="average")
+iris.hclust$labels <- paste(iris$Species, rownames(iris))
+plot(iris.hclust, cex=0.75, main="Clustering of Four Iris Variables")
+```
+
+
+```{r}
+library(RColorBrewer)
+iris.cols <- brewer.pal(3, "Dark2")
+sam.cols <- iris.cols[as.factor(iris$Species)]
+plot(as.dendrogram(iris.hclust), type="rectangle", leaflab="none", cex.lab=2, main="Clustering of Four Iris Variables")
+mtext(iris$Species[iris.hclust$order], col=sam.cols[iris.hclust$order], side=1, at=1:nrow(iris), 
+      line=0.5, cex=0.5, las=2, family="mono")
+legend("toprigh", legend=c("setosa", "versicolor", "viginica"), fill=iris.cols)
+```
+
+
+
+```{r}
+d <- dist(iris_transform, method = "euclidean")
+hc <- hclust(d, method = "average" )
+hc <- c("setosa","versicolor","virginica")[cutree(hc, h = 3)]
+hc
+```
+
+
+```{r}
+var.means <- apply(iris[, 1:4], 2, mean)
+var.sd <- apply(iris[, 1:4], 2, sd)
+iris.zscores <- sweep(iris[, 1:4], 2, var.means, "-")
+iris.zscores <- sweep(iris.zscores, 2, var.sd, "/")
+head(iris.zscores)
+```
+
+
+```{r}
+iris.dist <- dist(iris.zscores, method="euclidean")
+as.matrix(iris.dist)[1:6, 1:6]
+```
+
