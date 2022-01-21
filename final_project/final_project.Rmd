@@ -1,0 +1,868 @@
+---
+title: "Final_Project"
+author: "Fatma KARADAĞ~Gizem PESEN"
+date: "13 01 2022"
+output: html_document
+---
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+In Thıs project, which we selected to examine **lung cancer**, there are 1001 rows and columns. [lung cancer data](https://data.world/cancerdatahp/lung-cancer-data)
+
+Our main goal is to predict the factors affecting cancer risk by analyzing the data, to facilitate the diagnosis of patients. Because early diagnosis saves lives.
+
+## Import Libraries
+
+
+
+```{r}
+library(missForest)
+library(e1071)
+library(logisticPCA)
+library(ggplot2)
+library(nnet)
+library(rpart)
+library(caTools)
+library(readxl)
+library(corrplot)
+library(Amelia)
+library(mlbench)
+library(caret)
+library(plyr)
+library(MASS)
+library(dplyr)
+library(factoextra)
+library(cluster)
+library(stats)
+library(rpart.plot)
+library(plotrix)
+library(ROSE)
+library(randomForest)
+library(ggraph)
+```
+
+
+## Loading the Data
+
+
+```{r }
+df <- read_excel("C:/Users/ftmak/OneDrive/Masaüstü/cancer patient data sets.xlsx")
+
+
+```
+
+## Exploratory data analysis
+
+```{r}
+summary(df)
+```
+
+```{r}
+head(df,n=6)
+```
+
+
+```{r}
+colnames(df)
+```
+
+Patient Id refers to the people whose data is received. The level of the disease is divided into three as "Low", "Medium" and "High" with the Level column.
+**Age: **What is the relationship between age and disease level?
+**Gender:** do women or men get lung cancer more often? Is gender a factor in this?
+**Smoking , Passive Smoker , Alcohol use :** Do harmful substances affect lung cancer?
+**Diet , Obesity:** What is the effect of eating habits on cancer?
+**Genetic Risk, chronic Lung Disease :** what is the effect of genetic or chronic diseases on cancer?
+**Air Pollution, Dust Allergy , OccuPational Hazards :** how do environmental influences relate to lung cancer?
+**Snoring , Dry Cough , Frequent Cold, Clubbing of Finger Nails , Swallowing Difficulty , Wheezing , Shortness of Breath , Weight Loss , Fatigue , Coughing of Blood , Chest Pain :** Which symptoms are decisive for the diagnosis of lung cancer?
+
+
+```{r}
+colnames(df) <- c("patiend_id", "age", 
+                       "gender", "air_pollution", "alcohol_use","dust_allergy", "occupational_hazards","genetic_risk","chronic_lung_disease","balanced_diet","obesity","smoking","passive_smoker","chest_pain","coughing_of_blood","fatigue","weight_loss","shortness_of_breath","wheezing","swallowing_difficulty","clubbing_of_finger_nails","frequent_cold","dry_cough","snoring","level")
+```
+
+
+We changed the column names and made them more understandable. Also, having a space in the column name caused us trouble in the future.
+
+
+```{r}
+colnames(df)
+```
+
+```{r}
+sapply(df,class)
+```
+
+
+We have printed the data type of the columns, in this way, when we need to get numeric values, we will be able to decide which range to take from our data.
+
+
+
+```{r}
+s1 <- dplyr::select(df, age:smoking)
+s1
+```
+
+
+From these variables, we selected all the variables between the "Age" and "Smoking" and defined them as "s1".
+
+
+
+```{r}
+df %>%
+    select(age , level) %>%
+    filter(age > 63)
+```
+
+We looked at the level (high-medium-low) of the disease in people older than 63 years of age.We realızed there are only "Hıgh" or "Medıum" levels. So we can generalıze old people lung cancer rısk ıs more because there ıs no "Low" level ın ıt.
+
+```{r}
+df %>%
+    select(age , level) %>%
+    filter(age < 40)
+```
+
+We looked at the level (high-medium-low) of the disease in people younger than 40 years old.Usually level is between medium and low.
+
+```{r}
+select(df,obesity, level)
+```
+
+## Visualization Techniques
+
+```{r}
+df$gender <- as.factor(df$gender)
+summary(df$gender)
+```
+
+1 is male,2 is female
+
+```{r}
+slices <- c( 402, 598)
+lbls <- c("Female" ,"Male")
+pie3D(slices,labels=lbls,explode=0.05,
+   main="Pie Chart of  ")
+```
+
+
+```{r}
+ggplot(data=df, aes(x=gender)) +
+  geom_bar(fill="orange", alpha=0.7)+
+  labs(title = "BarChart", x="Gender", y="Count")
+```
+
+```{r}
+ggplot(data=df, aes(x=genetic_risk, y=level, fill= genetic_risk)) +
+  geom_boxplot() + 
+  labs(title = "Boxplot", x="genetic risk", y="Level") +
+  stat_summary(fun=mean, geom="point", shape=4, size=2) +
+  theme(axis.text.x=element_text(angle=-45,hjust=0,vjust=0))
+
+```
+
+We looked that genetıc rısk and cancer level relatıonshıp .You can see clearly when genetıc rısk more than 6 ın 10 the cancer level ıs hıgh.
+
+```{r}
+ggplot(df, aes(x=level,fill = level))+ 
+  theme_bw()+
+  geom_bar()+
+  labs(x = "Level", y = "Data Count", title="Lung Cancer")
+```
+We analyzed the general lung cancer level in all patients with this diagram. The ratio was compatible.
+
+
+```{r}
+p<-ggplot(df, aes(x=obesity, y=level, color=level)) +
+  geom_bar(stat="identity", fill="white")
+p
+```
+
+We investigated whether obesity is a value affecting lung cancer. Obese people have a "High" level of lung cancer as seen in the diagram.
+
+
+```{r}
+a <- ggplot(df, aes(x= level, y=genetic_risk, color=genetic_risk)) +
+  geom_bar(stat="identity", fill="white")
+a
+```
+
+We examined the relationship between genetic risk and lung cancer level. Numbering the genetic risk between 1-7; **dark blue: **little, **light blue:** if we color it as genetic risk. In the image, we see patients with **high genetic risk in those with "High" lung levels, and people with no or low genetic risk in the "Low" section.**
+
+
+```{r}
+b <- ggplot(data=df, aes(x=level, y=air_pollution, fill=gender)) +
+geom_bar(stat="identity", color="black", position=position_dodge())+
+  theme_minimal()
+b + scale_fill_manual(values=c('#999999','#E69F00'))
+
+
+```
+
+
+
+## Checking Missing data
+
+
+```{r}
+missmap(df)
+```
+
+Looking at the image above, it is clear that there is no missing value in our data. Therefore, we do not need to delete or change any columns.
+
+
+## Checking imbalanced data
+
+
+
+```{r}
+table(df$level)
+```
+```{r}
+prop.table(table(df$level))
+```
+
+
+The level column we used in our data is in a balanced state. That is, since **there are such small differences between them**, they can be ignored in the classification and clustering processes.
+In other words, in line with what we read and what is explained in the lesson, it will not cause us a big problem.
+
+
+## Multicolinearity
+
+```{r}
+correlations <- cor(df[c(4:24)])
+corrplot::corrplot(correlations,method = "square",tl.cex = 0.6, tl.col = "black")
+
+```
+
+As you see above some of our columns have a strong positive correlation between them.That problem name is multicolinearity.
+
+
+## Apply PCA
+
+
+The basic logic behind PCA is to represent a multidimensional data with fewer variables by capturing the essential features in the data.
+
+
+```{r}
+pca <- prcomp(df[,4:7], cor=TRUE, scale = TRUE)
+```
+
+We got the first 4 values that are numeric so the range is between 4 and 7.
+
+
+```{r}
+summary(pca)
+```
+
+
+```{r}
+fviz_eig(pca, addlabels=TRUE, ylim=c(0,60), geom = c("bar", "line"), barfill = "pink",  
+         barcolor="blue",linecolor = "red", ncp=10)+
+         labs(title = "Cancer All Variances - PCA",
+          x = "Principal Components", y = "% of variances")
+```
+
+
+```{r}
+df$level[df$gender==4] = '1'
+df$level[df$gender==2] = '2'
+
+fviz_pca_biplot(pca, col.ind = df$level, col="black",
+                palette = "jco", geom = "point", repel=TRUE,
+                legend.title="Gender", addEllipses = TRUE)
+```
+
+When we look at the first 3 components of our PCA results, it is enough for us to reach a great figure of approximately 97%
+
+When we look at the pca values, the Standard Deviation value is decreasing as it should be. Proportion of Variance value decreases, Cumulative Proportion value increases.
+
+
+## Apply Logistic Regression 
+
+
+Logistic regression is used to describe data and explain the relationship between a dependent binary variable and one or more nominal, inter-row, interval, or ratio-level independent variables.
+
+dependet variable is gender in our data.
+
+```{r}
+df$gender <- as.factor(df$gender)
+set.seed(123)
+
+sample<- createDataPartition(y= df$gender,p=0.8,list = FALSE)
+
+train_data <- df[sample,]
+test_data <- df[-sample,]
+```
+
+```{r}
+logistic_model <- glm(gender~.,data = train_data,family = "binomial")
+
+```
+
+
+We have searched many sources for the warning above, it is not a factor affecting the result. It can be ignored.
+
+
+
+```{r}
+
+prediction <- predict(logistic_model, data = train_data, type = "response")
+
+b <- factor(ifelse(prediction>0.5,"1","2"))
+
+confmatrix <-table(Actual_value=train_data$gender,Predicted_value=prediction >0.5)
+#confmatrix
+
+confusionMatrix(train_data$gender,as.factor(b))
+
+```
+
+Although we chose the binomial(boolean) column required for logistic regression, we get an unusual result here.
+
+
+```{r}
+plot(confmatrix)
+```
+
+
+
+
+## Apply Linear Regression
+
+
+Let's guess what is the average age of people with chronic level 7 with linear reggession.
+
+```{r}
+linearMod <- lm(age ~chronic_lung_disease, data=df)  # build linear regression model on full data
+summary(linearMod)
+```
+
+
+
+
+```{r}
+a <- data.frame(chronic_lung_disease = 7)
+result <-  predict(linearMod,a)
+print(result)
+```
+```{r}
+b <- data.frame(chronic_lung_disease = 3)
+result <-  predict(linearMod,b)
+print(result)
+```
+
+As can be seen, people with low chronic level are younger, so the average age is younger than the other.
+In this case, it is taken into account using linear reggession.
+
+
+```{r}
+ggplot(df, aes(x = age, y = chronic_lung_disease)) + 
+  geom_point() +
+  stat_smooth(method = "lm", col = "red")
+
+```
+
+It is visualized the relationship between age and chronic_lung_disease with linear regression model. 
+
+
+
+## Apply Clustering Techniques
+
+
+```{r}
+df_pr <- prcomp(df[,c(4:7)], center = TRUE, scale = TRUE)
+summary(df_pr)
+```
+
+```{r}
+screeplot(df_pr, type = "l", npcs = 4, main = "Screeplot of the first 4 PCs")
+abline(h = 1, col="red", lty=5)
+legend("topright", legend=c("Eigenvalue = 1"),
+       col=c("red"), lty=5, cex=0.6)
+```
+
+
+
+```{r}
+plot(df_pr$x[,1],df_pr$x[,2], xlab="PC1 (82%)", ylab = "PC2 (0,8%)", main = "PC1 / PC2 - plot")
+```
+
+
+
+## KMeans
+
+```{r}
+
+set.seed(101)
+km <- kmeans(df[,4:7], 2)
+plot(df_pr$x[,1],df_pr$x[,2], xlab="PC1 (82%)", 
+     ylab = "PC2 (0,8%)", 
+     main = "PC1 / PC2 - plot", 
+     col=km$cluster)
+```
+
+```{r}
+km$centers
+table(km$cluster, df$level)
+```
+
+km centers ile 4 ve 7 arasındaki columnların centerslarını bulur.
+sonra da level ile  kümeleme yapar. 
+
+```{r}
+set.seed(102)
+km <- kmeans(df[,4:7], 3)
+plot(df_pr$x[,1],df_pr$x[,2], xlab="PC1 (82%)", 
+     ylab = "PC2 (0.08%)", 
+     main = "PC1 / PC2 - plot", 
+     col=km$cluster)
+```
+
+
+```{r}
+km
+```
+
+
+```{r}
+table(km$cluster, df$level)
+```
+
+```{r}
+km <- kmeans(df[,4:7], 3)
+#We can also plot clusters with fviz_cluster() function
+fviz_cluster(km, data = df[,4:7])
+```
+
+
+In the data we applied PCA, columns 4 and 7 are numeric values. Therefore, column selection was made in that value range.
+For the k point, the value of 3 is taken and the center points are found, and a clustering process is performed for these center points.
+
+Finally, as seen above, kmeans aggregation was performed and visualized.
+
+
+## Hierchical
+
+
+As the name suggests, hierarchical clustering is a clustering algorithm. There are two different variations: Agglomerative (from the part to the whole) and Divisive (from the whole to the part).
+
+
+
+Clusters that are close to each other in terms of distance merge to form a new cluster.
+
+```{r}
+distance <- dist(df[,4:7], method="euclidean") 
+
+fviz_nbclust(df[,4:7], FUN = hcut, method = "wss")
+
+```
+
+
+
+
+
+```{r}
+hier <- hclust(distance, method="average")
+plot(hier) 
+rect.hclust(hier, k=2, border="red")
+```
+
+```{r}
+hier_cut <- cutree(hier, 2)
+table(predicted=hier_cut, true=df$level)
+```
+
+
+```{r}
+plot(hier) 
+rect.hclust(hier, k=3, border="blue")
+```
+
+
+
+```{r}
+distance <- dist(df[,4:7], method="euclidean") 
+hier_diana <- diana(df[,4:7])
+# Divise coefficient; amount of clustering structure found
+hier_diana$dc
+```
+
+
+
+```{r}
+pltree(hier_diana, cex = 0.6, hang = -1, main = "Dendrogram of diana")
+```
+
+
+
+We also performed a clustering process by going from the part to the whole.
+
+We calculated the distances between these parts and continued in this way and tried to collect the parts close to each other by clustering them.
+
+
+
+
+## Apply Classification Techniques
+
+
+
+# Decision Tree
+
+```{r}
+
+
+
+#trainSet=scale(train_data[,4:8])
+#testSet=scale(test_data[,4:8])
+
+
+model =rpart(formula= gender~., data=train_data)
+
+rpart.plot(model, box.palette="RdBu", shadow.col="gray", nn=TRUE)
+
+```
+
+
+
+```{r}
+probability.prediction=predict(model,newdata = train_data,type = 'class')
+probability.prediction
+```
+
+```{r}
+
+conf.matrix <- confusionMatrix(table(train_data$gender,probability.prediction))
+conf.matrix
+```
+
+
+OOMMGG ,accuracy value can now predict with 100% accuracy with the decision tree classification.
+
+
+```{r}
+table <-data.frame(conf.matrix$table)
+
+plotTable <-table %>%
+  group_by(probability.prediction)%>%
+  mutate(prop = Freq/sum(Freq))
+
+
+ggplot(data = plotTable,mapping = aes(x=Var1,y=probability.prediction,alpha=prop))+geom_tile(aes(fill=Freq),colour="white")+geom_text(aes(label=Freq),vjust=.5,fontface="bold",alpha=1,color="white",size=10)+scale_fill_gradient(low = "blue",high = "navyblue")+theme_bw()+theme(legend.position = "none")
+```
+
+
+
+## Neural Network
+
+```{r}
+model_nnet<-nnet(gender ~. ,
+                data= train_data,
+              size=2, maxit=100,MaxNWts=84581
+)
+model.prediction=predict(model_nnet,newdata = train_data,type = 'class')
+
+conf.matrix <- confusionMatrix(table(train_data$gender,model.prediction))
+conf.matrix
+
+```
+
+
+If we need to compare two classifications, we get accuracy 100% in decison tree classification and 61% accuracy in neural network classification. Therefore, we prefer decison treedeen because its predictive value is higher.
+
+
+
+```{r}
+data.svm = svm(chronic_lung_disease ~ age, data = train_data, kernel = "linear", cost = 10, scale = FALSE)
+print(data.svm)
+```
+
+
+```{r}
+plot(data.svm,data = train_data)
+
+```
+
+
+##  Use the PCA results
+
+```{r}
+
+df_pca <- prcomp(df[,c(4:7,10,11)], center = TRUE,scale. = TRUE)
+
+summary(df_pca)
+
+```
+
+
+
+If we compare the pca we did in step5 with the results we did in this step, we used 4 pcas in the first step, we used 6 pcas in this step, and as a result, we reached a rate of 97% in the first 4 pcas, while applying this step step we achieved a cumulative proportion ratio of 100% in the first 6 pcas. We were able to increase our rate.
+
+
+
+```{r}
+df_pca$sdev^2 / sum(df_pca$sdev^2)
+```
+Thus, the first two principal components explain a majority of the total variance in the data.
+
+This is a good sign because the previous biplot projected each of the observations from the original data onto a scatterplot that only took into account the first two principal components.
+
+
+
+
+## Missing Data imputation
+
+
+For the missing data part, we created a new file by copy-pasting the original data and applied deletion and NA operations in that file.
+We also assigned the data we created to df1.
+The isNA columns in the data were checked and we applied clustering, and finally, the results were compared for the results.
+
+```{r}
+df.prodNA<-bind_cols(df[1],missForest::prodNA(df[-1],noNA=0.1))
+```
+
+
+```{r}
+sum(is.na(df.prodNA))
+```
+
+```{r}
+
+#mean(df.prodNA$patiend_id)
+#mean(df.prodNA$age)
+#mean(df.prodNA$gender)
+#mean(df.prodNA$air_pollution)
+#mean(df.prodNA$alcohol_use)
+#mean(df.prodNA$dust_allergy)
+#mean(df.prodNA$occupational_hazards)
+#mean(df.prodNA$genetic_risk)
+#mean(df.prodNA$chronic_lung_disease)
+#mean(df.prodNA$balanced_diet)
+#mean(df.prodNA$obesity)
+#mean(df.prodNA$smoking)
+#mean(df.prodNA$passive_smoker)
+#mean(df.prodNA$chest_pain)
+#mean(df.prodNA$coughing_of_blood)
+#mean(df.prodNA$fatigue)
+#mean(df.prodNA$weight_loss)
+#mean(df.prodNA$shortness_of_breath)
+#mean(df.prodNA$wheezing)
+#mean(df.prodNA$swallowing_difficulty)
+#mean(df.prodNA$clubbing_of_finger_nails)
+#mean(df.prodNA$frequent_cold)
+#mean(df.prodNA$dry_cough)
+#mean(df.prodNA$snoring)
+#mean(df.prodNA$level)
+
+```
+
+```{r}
+#head(df.prodNA)
+```
+
+
+
+```{r}
+#mean_dust_allergy<-mean(df$dust_allergy)
+#df.prodNA[is.na(df.prodNA$dust_allergy),"dust_alergy"]<- mean_dust_allergy
+
+```
+
+
+
+
+
+
+
+```{r}
+
+df3 <- read_excel("C:/Users/ftmak/OneDrive/Masaüstü/cancer_sonn.xlsx")
+```
+
+
+```{r}
+colSums(is.na(df3))
+
+```
+
+```{r}
+missmap(df3)
+```
+
+
+
+```{r}
+
+df3<-na.omit(df3)
+```
+
+
+We removed the null values in the data with the na.omit operation.
+
+
+
+```{r}
+missmap(df3)
+```
+
+
+```{r}
+colSums(is.na(df3))
+
+```
+
+
+
+```{r}
+
+set.seed(123)
+df3$Gender <- as.factor(df3$Gender)
+
+sample<- createDataPartition(y= df3$Gender,p=0.8,list = FALSE)
+
+train_data3 <- df3[sample,]
+test_data3 <- df3[-sample,]
+```
+
+
+```{r}
+model3 =rpart(formula= Gender~., data=train_data3)
+```
+
+```{r}
+prediction_fılldata=predict(model3,newdata = train_data3,type = 'class')
+```
+
+```{r}
+
+conf.matrix2 <- confusionMatrix(table(train_data3$Gender,prediction_fılldata))
+conf.matrix2
+```
+
+
+
+in data with imputed values accuracy returned with 100% accuracy, which means that we have successfully filled in the empty values in the data.
+
+
+## Imbalanced data set
+
+
+
+```{r}
+
+df_imbalance <-  read_excel("C:/Users/ftmak/OneDrive/Masaüstü/cancer_imbalance.xlsx")
+
+head(df_imbalance,n=6)
+
+```
+
+
+
+```{r}
+ggplot(data=df_imbalance, aes(x=Gender)) +
+  geom_bar(fill="orange", alpha=0.7)+
+  labs(title = "BarChart", x="Gender", y="Count")
+```
+
+
+```{r}
+table(df_imbalance$Gender)
+```
+
+
+```{r}
+prop.table(table(df_imbalance$Gender))
+
+```
+
+
+```{r}
+
+library(ROSE)
+
+
+n_legit <- 903
+new_frac_legit <- 0.50
+new_n_total <- (n_legit/new_frac_legit )
+
+#oversampling_result <- ovun.sample( Gender~.,data = df_imbalance,method = "over",N = new_n_total,seed = 2018)
+#oversampled_df <- oversampling_result$data
+#table(oversampled_df$Gender)
+
+```
+
+
+
+## RESULTS
+
+
+
+**Describe our data **
+There are 1001 rows and columns in this project that we chose to examine **lung cancer**. [lung cancer data](https://data.world/cancerdatahp/lung-cancer-data)
+
+Our main goal is to predict the factors affecting cancer risk by analyzing the data and to facilitate the diagnosis of patients. Because early diagnosis saves lives.
+
+**Exploratory data analysis and visualization techniques**
+We loaded our data and changed the names. We have explained how to analyze all columns. We visualized other factors by disease level; **We concluded that the disease level is higher in the elderly, the disease level increases as obesity increases, and the disease level increases accordingly if the genetic risk is high in winter.**
+
+There are no missing values in our data, and the level column we use in our data is in a balanced state. Therefore, in the last section, we deleted and reanalyzed 20% of our data.
+
+ We looked at the first 3 components of our PCA results, it's enough to get a big figure of about 97% and
+When looking at the pca and pca values, the Standard Deviation value drops as it should. Variance Ratio value decreases, Cumulative Ratio value increases.
+
+First, we applied **Logistic regression**, kept gender as the dependent variable, and split our data as train-test. Finally, we performed the estimation and visualized the confusion matrix by calculating it. We also applied **Linear Regression**. We estimated the mean age by chronic level by linear regression. **The higher the chronic level, the higher the age ratio was estimated. **
+
+In the clustering part, we applied **Kmeans clustering** with PCA, columns 4 and 7 are numeric values. For this reason, column selection was made in this value range.
+** By taking the value of 3 for the k point, the center points are found and clustering is done for these center points.** Finally, it is visualized by making kmeans aggregation as seen above. We also implemented **Hierarchical**. We calculated the distances between these pieces and went on like this and tried to collect the pieces that were close together by clustering them.
+
+**in the classification section ***, we applied Neural Network classification with Decision Tree, which is one of the classification methods.
+Decision tree and Neural Network tried to classify the factor of gender on lung cancer.
+With the Decision Tree de predict, the gender of the people was printed on the screen and the confusion matrix value was calculated and it was seen that the accuracy value reached 100%, and this value also shows that the classification method was chosen quite accurately to make predictions.
+As another classification method, the Neural Network model was applied and it was seen that the accuracy value calculated from there was 62%, and of course, if these two classifications are compared, it will be more accurate to take the Decision Tree with 100% predictive value.
+
+**Use the PCA results ***  If we compare the PCA we did in step5 with the results we did in this step, we used 4 PCAs in the first step, we used 6 PCAs in this step, and as a result, we reached a rate of 97% in the first 4 PCAs, while applying this step step we achieved a cumulative proportion ratio of 100% in the first 6 PCAs We were able to increase our rate.
+Thus, the first two principal components explain a majority of the total variance in the data.
+
+This is a good sign because the previous biplot projected each of the observations from the original data onto a scatterplot that only took into account the first two principal components.
+
+
+**Missing Data Imputation**
+
+First, we checked if there are NA columns in the data, and then we equalize the NA columns and calculate their mean and get the closest value.
+Secondly, we applied the method we wrote below:
+For the missing data part, we created a new file by copy-pasting the original data and applied deletion and NA operations in that file.
+We also assigned the data we created to df1.
+The isNA columns in the data were checked and we applied clustering, and finally, the results were compared for the results.
+
+
+
+**Imbalanced data set**
+We increased the number of values from 2 on the gender column in our data to 1 and added it as a new file.
+
+Then we did a visulation and we tried to increase our data with ovun.sample by over-doing it.
+
+After these operations were done, we separated the data as train and test and performed a classification operation on it.
+
+----------------------------
+
+
+
+In general, when we examined some columns in our data, we saw the effect of the level in lung cancer.
+
+
+For example, as the age increases, the level of lung cancer also increases.
+Obese people have higher lung cancer levels.
+
+
+Since the gender column in our data is the only boolean value, we used this column for logistic-reggression.
+
+
+We are also aware that other factor affect this result and it cannot be ignored.
+
+In our opinion, if our data is constantly fluid, healthier results can be obtained and better predictions can be made.
+
+
+**As a result, taking these factors into account, the lung cancer level can be determined beforehand and measures can be taken.**
